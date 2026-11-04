@@ -1,4 +1,0 @@
-# Valores para colar na Vercel (Settings > Environment Variables). NAO vai para o deploy nem para o git.
-# Depois de colar, pode apagar este arquivo.
-APP_ENCRYPTION_KEY=kz5VoLSa9zjAbqoaWMLMHAoNPBYLRf_TFPEA_rgH24Y
-CRON_SECRET=g8f1uhrEKeUso8G0iDOe_Hj_8T04sNIb5BSAF70VMJc

@@ -1,0 +1,6 @@
+{
+  "name": "Clickify",
+  "avoid": ["UTMify", "Utmify", "utmify"],
+  "domains": ["utmify.com.br", "app.utmify.com.br"],
+  "colors": []
+}

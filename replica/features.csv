@@ -1,0 +1,41 @@
+feature,area,priority,original,clone,notes
+Cadastro e login com e-mail,onboarding,must,yes,yes,sem verificação de e-mail ainda
+Checklist de onboarding (Meta + webhook + UTMs),onboarding,must,yes,yes,inferido
+Conectar Meta Ads por OAuth e escolher contas,contas de anúncio,must,yes,yes,testado com o Meta real em 2026-11-01: 9 contas
+Sincronizar campanhas conjuntos e anúncios,contas de anúncio,must,yes,yes,testado no real (BUG-5 corrigido)
+Sincronizar gasto diário por anúncio,contas de anúncio,must,yes,yes,"R$ 28,79 em 30 dias bate com o Gerenciador; cron a cada 15 min no vercel.json"
+Gerar URL de webhook por integração,integrações,must,yes,yes,
+Receber vendas do Shopify,integrações,must,yes,partial,normalização testada; HMAC não testado com uma loja real
+Receber vendas por webhook genérico (JSON),integrações,must,yes,yes,
+Status da venda (aprovada pendente recusada reembolsada chargeback),vendas,must,yes,yes,
+Atribuir venda a campanha conjunto e anúncio pelas UTMs,atribuição,must,yes,yes,por ID e não por nome
+Gerador de UTMs para colar no anúncio,atribuição,must,yes,yes,
+Dashboard com KPIs (faturamento gasto lucro ROAS CPA),dashboard,must,yes,yes,
+Filtro de período e de conta,dashboard,must,yes,partial,período sim; filtro por conta é feito ativando/desativando a conta
+Tabela de campanhas com gasto vendas faturamento lucro ROAS,campanhas,must,yes,yes,
+Pausar e ativar campanha conjunto e anúncio pela tabela,campanhas,must,yes,yes,confirmado no Meta real em 2026-11-01 (C1 - VTTC pausada pelo app)
+Lista de vendas com origem,vendas,must,yes,yes,
+Editar orçamento pela tabela,campanhas,should,yes,yes,confirmado no Meta real: 10 > 11 > 10 na Engaje- Aquecimento
+Custos para o lucro (imposto taxa do gateway custo do produto),configurações,should,yes,partial,imposto e taxa sim; custo do produto não
+Vendas não atribuídas separadas,atribuição,should,yes,yes,
+Script de captura de UTM na landing page,atribuição,should,yes,no,
+Enviar venda aprovada ao Meta via Conversions API,pixels,should,yes,no,
+Múltiplos dashboards (workspaces),dashboards,should,yes,no,schema pronto
+Seletor de colunas na tabela,campanhas,should,yes,no,
+Gráfico diário de faturamento x gasto,dashboard,should,yes,yes,
+Mais checkouts (Yampi Cartpanda Kiwify...),integrações,should,yes,partial,Kiwify Hotmart Yampi Eduzz em beta (da documentação); Cartpanda via modo capturar
+Planos com limite de vendas aprovadas e cobrança,cobrança,could,yes,no,
+Regras programadas (pausar se CPA > X),automação,could,yes,no,
+Rastreio de vendas no WhatsApp,whatsapp,could,yes,no,
+App mobile,mobile,could,yes,no,a web funciona em 390px
+Google Ads e TikTok Ads,contas de anúncio,could,no,no,
+Exportar CSV,vendas,could,no,no,
+Suporte VIP com especialistas,serviço,could,yes,skip,serviço humano e não software
+Programa de parceiros,negócio,could,yes,skip,a rede de parceiros é deles
+As ~170 integrações prontas,integrações,could,yes,skip,parcerias deles; fazemos adaptadores um a um
+Sair de todos os dispositivos e excluir conta,conta,should,no,yes,adicionado: não estava no original mapeado
+Regras automáticas (aplicar sugestões da tela Hoje sozinho),otimização,should,yes,no,pesquisa: o que amam na original (3 textos)
+Avisos de venda e resumo do dia,notificações,should,yes,no,pesquisa: o que amam na original (2 textos)
+"Tela ""por que não bate?"" (Meta x checkout por campanha)",confiança,should,no,no,pesquisa: divergência de números (4 textos)
+Cancelar assinatura em 1 clique e sem cobrança depois,cobrança,must,no,no,pesquisa: Reclame Aqui cobrança indevida 16; fazer quando houver cobrança
+App instalável no celular (PWA),mobile,could,no,no,pesquisa: app lento e travando (7 textos)

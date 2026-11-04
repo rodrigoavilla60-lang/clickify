@@ -1,0 +1,80 @@
+@import "tailwindcss";
+
+/* Tokens: replica/design/tokens.json. O rebrand troca só estes valores. */
+:root {
+  /* Marca Clickify (da logo) */
+  --c-brand-green: #1ab796;
+  --c-brand-mint: #a4e7d6;
+  --c-brand-petrol: #0e3533;
+
+  --c-bg: #071413;
+  --c-surface: #0c1f1d;
+  --c-surface-2: #122a27;
+  --c-border: #1d3f3b;
+  --c-border-input: #4f7a75;
+  --c-text: #e6f4f0;
+  --c-text-muted: #94b4ae;
+  --c-accent: var(--c-brand-green);
+  --c-on-accent: #071413;
+  --c-danger: #f87171;
+  --c-success: var(--c-brand-mint);
+  --c-warning: #fbbf24;
+  color-scheme: dark;
+}
+
+@theme inline {
+  --color-brand-green: var(--c-brand-green);
+  --color-brand-mint: var(--c-brand-mint);
+  --color-brand-petrol: var(--c-brand-petrol);
+  --color-bg: var(--c-bg);
+  --color-surface: var(--c-surface);
+  --color-surface-2: var(--c-surface-2);
+  --color-border: var(--c-border);
+  --color-border-input: var(--c-border-input);
+  --color-text: var(--c-text);
+  --color-muted: var(--c-text-muted);
+  --color-accent: var(--c-accent);
+  --color-on-accent: var(--c-on-accent);
+  --color-danger: var(--c-danger);
+  --color-success: var(--c-success);
+  --color-warning: var(--c-warning);
+  --font-sans: var(--font-inter), system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+  --shadow-pop: 0 12px 32px rgba(0, 0, 0, 0.5);
+}
+
+body {
+  background: var(--c-bg);
+  color: var(--c-text);
+  font-family: var(--font-sans);
+}
+
+/* Fundo de rede (public/fundo.jpg) com uma camada escura por cima, para os textos fora dos
+   cartões continuarem legíveis. Num ::before fixo, e não com background-attachment: fixed,
+   que trava a rolagem no celular. */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    linear-gradient(180deg, rgb(7 20 19 / 0.72), rgb(7 20 19 / 0.88)),
+    url("/fundo.jpg") center / cover no-repeat;
+}
+
+:focus-visible {
+  outline: 2px solid var(--c-accent);
+  outline-offset: 2px;
+}
+
+/* Funil em circuito: brilho dos pulsos. Quem pediu menos movimento no sistema vê o circuito parado. */
+.circuit-pulse {
+  filter: drop-shadow(0 0 4px var(--color-brand-mint)) drop-shadow(0 0 10px var(--color-brand-green));
+}
+@media (prefers-reduced-motion: reduce) {
+  .circuit-pulse { display: none; }
+}

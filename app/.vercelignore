@@ -1,0 +1,8 @@
+# Nada disto vai para o deploy: dados locais, segredos de dev e saída de testes.
+.data
+.env*
+!.env.example
+test-results
+playwright-report
+e2e
+tests

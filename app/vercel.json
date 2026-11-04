@@ -1,0 +1,5 @@
+{
+  "framework": "nextjs",
+  "regions": ["gru1"],
+  "crons": [{ "path": "/api/cron/sync-meta", "schedule": "0 9 * * *" }]
+}

@@ -5,14 +5,16 @@ import { syncIfStale } from "@/lib/sync";
 import { resolvePeriod } from "@/lib/period";
 import {
   breakdowns, dailySeries, derive, filterOptions, fixedCostFor, funnelCounts, NO_SOURCE, spendIsTotal, totals, trackingRows,
-  type Derived, type Filters, type PaymentSlice,
+  type Filters, type PaymentSlice,
 } from "@/lib/metrics";
 import { PLATFORMS, isPlatform } from "@/lib/platforms";
 import { FunnelCard } from "@/components/funnel-card";
 import { TrackingCard } from "@/components/tracking-card";
 import { int, money, percent, ratio } from "@/lib/format";
-import { ButtonLink, Card, InfoTip, Notice, PageHeader } from "@/components/ui";
+import { ButtonLink, Card, Notice, PageHeader } from "@/components/ui";
 import { PeriodPicker } from "@/components/period-picker";
+import { getDashboardLayout } from "@/lib/dashboard";
+import { DashboardKpis, type MetricDatum } from "./kpis";
 
 export const metadata = { title: "Resumo" };
 
@@ -48,6 +50,58 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
   );
   const incomplete = !setup?.accounts || !setup?.hooks;
   const profitTone = d.profit > 0 ? "text-success" : d.profit < 0 ? "text-danger" : "";
+  const layout = await getDashboardLayout(ws.id);
+  const metrics: MetricDatum[] = [
+    {
+      key: "receita", label: "Faturamento", value: money(t.revenue), small: false,
+      hint: `${int(t.sales)} ${t.sales === 1 ? "venda aprovada" : "vendas aprovadas"}`,
+      tip: "Soma das vendas aprovadas no período, pelo valor que o checkout mandou. Reembolsos saem quando chegam.",
+    },
+    {
+      key: "gasto", label: "Gasto com anúncios", value: money(t.spend), small: false,
+      tip: "Quanto o Meta cobrou das contas ligadas no período. O imposto sobre o anúncio entra no lucro, não aqui.",
+    },
+    {
+      key: "lucro", label: "Lucro", value: money(d.profit), tone: profitTone, small: false,
+      profitRevenue: money(d.revenue),
+      profitLines: d.lines.map((l) => ({ key: l.key, label: l.label, amount: money(l.amount), how: l.how })),
+    },
+    {
+      key: "roas", label: "ROAS", value: ratio(d.roas), small: false,
+      hint: d.roas === null ? "Sem gasto no período" : `R$ 1 em anúncio voltou ${money(Math.round(d.roas * 100))}`,
+      tip: "Retorno sobre o gasto com anúncios: faturamento ÷ gasto. Acima de 1 o anúncio paga a si mesmo, mas ainda não conta impostos e custos.",
+    },
+    {
+      key: "roi", label: "ROI", value: d.roi === null ? "—" : percent(d.roi), small: true,
+      tone: d.roi !== null && d.roi < 0 ? "text-danger" : "", hint: "Lucro ÷ gasto com anúncios",
+      tip: "Quanto sobrou de lucro para cada real investido em anúncio, já descontando impostos, taxas e custo dos produtos. 50% = cada R$ 1 gasto deixou R$ 0,50 de lucro.",
+    },
+    {
+      key: "cpa", label: "CPA", value: d.cpa === null ? "—" : money(Math.round(d.cpa)), small: true,
+      hint: "Custo por venda",
+      tip: "Gasto com anúncios ÷ vendas aprovadas. Se passar do lucro que uma venda deixa, a campanha está no prejuízo.",
+    },
+    {
+      key: "ticket", label: "Ticket médio", value: t.sales ? money(Math.round(t.revenue / t.sales)) : "—", small: true,
+      hint: "Valor médio por venda",
+      tip: "Faturamento ÷ vendas aprovadas. Subir o ticket (kit, brinde, order bump) deixa mais espaço para o CPA.",
+    },
+    {
+      key: "margem", label: "Margem", value: percent(d.margin), small: true,
+      hint: "Do faturamento, virou lucro",
+      tip: "Lucro ÷ faturamento. Mostra quanto de cada venda fica com você depois de anúncio, impostos, taxas e produto.",
+    },
+    {
+      key: "pendentes", label: "Pendentes", value: money(t.pendingAmount), small: true,
+      hint: `${int(t.pending)} ${t.pending === 1 ? "pedido aguardando" : "pedidos aguardando"}`,
+      tip: "Pedidos feitos e ainda não pagos (Pix ou boleto em aberto, cartão em análise). Entram no faturamento quando forem aprovados.",
+    },
+    {
+      key: "reembolsos", label: "Reembolsos", value: money(t.refundAmount), small: true,
+      hint: `${int(t.refunds)} ${t.refunds === 1 ? "pedido" : "pedidos"}, com chargebacks`,
+      tip: "Vendas devolvidas ou contestadas no cartão (chargeback) no período. Já saíram do faturamento.",
+    },
+  ];
 
   return (
     <>
@@ -66,16 +120,12 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
         </Notice>
       )}
 
-      <section aria-label="Indicadores principais" className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <Kpi label="Faturamento" value={money(t.revenue)} hint={`${int(t.sales)} ${t.sales === 1 ? "venda aprovada" : "vendas aprovadas"}`}
-          tip="Soma das vendas aprovadas no período, pelo valor que o checkout mandou. Reembolsos saem quando chegam." />
-        <Kpi label="Gasto com anúncios" value={money(t.spend)}
-          tip="Quanto o Meta cobrou das contas ligadas no período. O imposto sobre o anúncio entra no lucro, não aqui." />
-        <ProfitKpi d={d} tone={profitTone} />
-        <Kpi label="ROAS" value={ratio(d.roas)}
-          hint={d.roas === null ? "Sem gasto no período" : `R$ 1 em anúncio voltou ${money(Math.round(d.roas * 100))}`}
-          tip="Retorno sobre o gasto com anúncios: faturamento ÷ gasto. Acima de 1 o anúncio paga a si mesmo, mas ainda não conta impostos e custos." />
-      </section>
+      <DashboardKpis
+        metrics={metrics}
+        initialOrder={layout.order}
+        initialHidden={layout.hidden}
+        funnel={<FunnelCard counts={funnel} hasAccounts={!!setup?.accounts} className="col-span-2 lg:row-span-3" />}
+      />
 
       {t.unattributed > 0 && (
         <p className="mt-3 text-sm text-warning">
@@ -83,25 +133,6 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
           <Link className="underline" href={`/vendas?p=${period.key}&s=sem-utm`}>Ver quais</Link>
         </p>
       )}
-
-      <div className="mt-3 grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <FunnelCard counts={funnel} hasAccounts={!!setup?.accounts} className="col-span-2 lg:row-span-3" />
-        <Kpi small label="ROI" value={d.roi === null ? "—" : percent(d.roi)} tone={d.roi !== null && d.roi < 0 ? "text-danger" : ""}
-          hint="Lucro ÷ gasto com anúncios"
-          tip="Quanto sobrou de lucro para cada real investido em anúncio, já descontando impostos, taxas e custo dos produtos. 50% = cada R$ 1 gasto deixou R$ 0,50 de lucro." />
-        <Kpi small label="CPA" value={d.cpa === null ? "—" : money(Math.round(d.cpa))} hint="Custo por venda"
-          tip="Gasto com anúncios ÷ vendas aprovadas. Se passar do lucro que uma venda deixa, a campanha está no prejuízo." />
-        <Kpi small label="Ticket médio" value={t.sales ? money(Math.round(t.revenue / t.sales)) : "—"} hint="Valor médio por venda"
-          tip="Faturamento ÷ vendas aprovadas. Subir o ticket (kit, brinde, order bump) deixa mais espaço para o CPA." />
-        <Kpi small label="Margem" value={percent(d.margin)} hint="Do faturamento, virou lucro"
-          tip="Lucro ÷ faturamento. Mostra quanto de cada venda fica com você depois de anúncio, impostos, taxas e produto." />
-        <Kpi small label="Pendentes" value={money(t.pendingAmount)}
-          hint={`${int(t.pending)} ${t.pending === 1 ? "pedido aguardando" : "pedidos aguardando"}`}
-          tip="Pedidos feitos e ainda não pagos (Pix ou boleto em aberto, cartão em análise). Entram no faturamento quando forem aprovados." />
-        <Kpi small label="Reembolsos" value={money(t.refundAmount)}
-          hint={`${int(t.refunds)} ${t.refunds === 1 ? "pedido" : "pedidos"}, com chargebacks`}
-          tip="Vendas devolvidas ou contestadas no cartão (chargeback) no período. Já saíram do faturamento." />
-      </div>
 
       <TrackingCard rows={tracking} period={period.key} />
 
@@ -226,48 +257,6 @@ function PaymentCard({ rows }: { rows: PaymentSlice[] }) {
         </table>
       )}
       <p className="mt-3 text-xs text-muted">Aprovação = pedidos pagos ÷ pedidos já decididos (pagos ou recusados). Pendentes ainda não contam.</p>
-    </Card>
-  );
-}
-
-// Lucro com a conta aberta: o "de onde veio isso?" mostra cada desconto e como foi calculado.
-function ProfitKpi({ d, tone }: { d: Derived; tone: string }) {
-  return (
-    <Card className="p-4 md:p-5">
-      <div className="flex items-start justify-between gap-2">
-        <p className="text-xs font-medium text-muted">Lucro</p>
-        <InfoTip label="Lucro">O que sobra do faturamento depois de anúncio, impostos, taxas, custo dos produtos e despesas fixas. Clique embaixo do valor para ver cada desconto.</InfoTip>
-      </div>
-      <p className={`mt-1 text-xl font-bold tabular-nums md:text-[28px] md:leading-[34px] ${tone}`}>{money(d.profit)}</p>
-      <details className="mt-1 text-xs">
-        <summary className="cursor-pointer text-muted hover:text-text">De onde veio isso?</summary>
-        <dl className="mt-2 space-y-1.5">
-          <div className="flex justify-between gap-2"><dt>Faturamento</dt><dd className="tabular-nums">{money(d.revenue)}</dd></div>
-          {d.lines.map((l) => (
-            <div key={l.key} className="flex justify-between gap-2" title={l.how}>
-              <dt className="text-muted">− {l.label}</dt>
-              <dd className="tabular-nums text-muted">{money(l.amount)}</dd>
-            </div>
-          ))}
-          <div className="flex justify-between gap-2 border-t border-border pt-1.5 font-semibold">
-            <dt>= Lucro</dt><dd className={`tabular-nums ${tone}`}>{money(d.profit)}</dd>
-          </div>
-        </dl>
-        <Link href="/custos" className="mt-2 inline-block text-accent underline">Ajustar custos</Link>
-      </details>
-    </Card>
-  );
-}
-
-function Kpi({ label, value, hint, tone = "", small, tip }: { label: string; value: string; hint?: string; tone?: string; small?: boolean; tip?: string }) {
-  return (
-    <Card className="p-4 md:p-5">
-      <div className="flex items-start justify-between gap-2">
-        <p className="text-xs font-medium text-muted">{label}</p>
-        {tip && <InfoTip label={label}>{tip}</InfoTip>}
-      </div>
-      <p className={`mt-1 font-bold tabular-nums ${small ? "text-lg" : "text-xl md:text-[28px] md:leading-[34px]"} ${tone}`}>{value}</p>
-      {hint && <p className="mt-1 text-xs text-muted">{hint}</p>}
     </Card>
   );
 }

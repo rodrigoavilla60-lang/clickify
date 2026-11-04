@@ -12,7 +12,7 @@ const NAV = [
   { href: "/campanhas", label: "Campanhas", icon: Megaphone },
   { href: "/vendas", label: "Vendas", icon: Receipt },
   { href: "/custos", label: "Custos", icon: Calculator },
-  { href: "/integracoes", label: "Conexões", icon: Cable, also: ["/contas", "/utms", "/pixel"] },
+  { href: "/integracoes", label: "Conexões", icon: Cable, also: ["/contas", "/utms", "/pixel", "/tracking"] },
 ];
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {

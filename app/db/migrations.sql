@@ -91,3 +91,56 @@ create table if not exists capi_events (
 -- Uma compra por pixel: o webhook pode chegar repetido, o envio não.
 create unique index if not exists capi_events_once on capi_events (pixel_id, order_id, event_name) where order_id is not null;
 create index if not exists capi_events_ws on capi_events (workspace_id, created_at desc);
+
+-- 2026-11-04: script de tracking first-party (Clickify Tracking).
+-- Sites (chave pública do snippet), visitantes e cliques com UTMs/click IDs persistidos.
+create table if not exists tracking_sites (
+  id uuid primary key default gen_random_uuid(),
+  workspace_id uuid not null references workspaces(id) on delete cascade,
+  public_key text not null unique,              -- ck_... (vai no data-site do snippet)
+  name text not null,
+  domain text,                                   -- ex.: t.loja.com, quando usar CNAME
+  created_at timestamptz not null default now()
+);
+create index if not exists tracking_sites_workspace_idx on tracking_sites (workspace_id);
+
+create table if not exists tracking_visitors (
+  id uuid primary key default gen_random_uuid(),
+  site_id uuid not null references tracking_sites(id) on delete cascade,
+  visitor_key text not null,                     -- uuid gerado no navegador (cookie ck_vid)
+  first_seen_at timestamptz not null default now(),
+  last_seen_at timestamptz not null default now(),
+  unique (site_id, visitor_key)
+);
+create index if not exists tracking_visitors_site_idx on tracking_visitors (site_id);
+
+create table if not exists tracking_clicks (
+  id uuid primary key default gen_random_uuid(),
+  site_id uuid not null references tracking_sites(id) on delete cascade,
+  visitor_id uuid not null references tracking_visitors(id) on delete cascade,
+  utm_source text,
+  utm_medium text,
+  utm_campaign text,
+  utm_content text,
+  utm_term text,
+  fbclid text,
+  gclid text,
+  gbraid text,
+  wbraid text,
+  ttclid text,
+  msclkid text,
+  landing_url text,
+  referrer text,
+  created_at timestamptz not null default now()
+);
+create index if not exists tracking_clicks_visitor_idx on tracking_clicks (visitor_id, created_at desc);
+create index if not exists tracking_clicks_site_idx on tracking_clicks (site_id, created_at desc);
+
+
+-- 2026-11-04: dashboard personalizável (ordem e visibilidade dos indicadores por workspace).
+create table if not exists dashboard_layouts (
+  workspace_id uuid primary key references workspaces(id) on delete cascade,
+  metric_order text[] not null,
+  hidden text[] not null default '{}',
+  updated_at timestamptz not null default now()
+);

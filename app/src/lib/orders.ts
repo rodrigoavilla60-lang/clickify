@@ -7,6 +7,7 @@ import { sendPurchase } from "./pixels";
 import {
   attribute, canTransition, normalizeGeneric, normalizeShopify, type NormalizedOrder, type OrderStatus,
 } from "./normalize";
+import { findClickAttribution } from "./track";
 import {
   normalizeEduzz, normalizeHotmart, normalizeKiwify, normalizeYampi, signatureOk, type CheckoutPlatform,
 } from "./checkouts";
@@ -35,6 +36,23 @@ export async function upsertOrder(workspaceId: string, webhookId: string | null,
     [workspaceId, platform, o.externalId],
   );
   const a = attribute(o);
+  // Se o pedido trouxe o ck_vid do script de tracking, o clique persistido (janela de 30 dias)
+  // tem prioridade: foi capturado no momento do clique, imune ao checkout perder os parâmetros.
+  const click = o.trackingVisitorKey
+    ? await findClickAttribution(workspaceId, o.trackingVisitorKey).catch(() => null)
+    : null;
+  const attr = {
+    campaign: click?.attr.campaign ?? a.campaign,
+    adset: click?.attr.adset ?? a.adset,
+    ad: click?.attr.ad ?? a.ad,
+  };
+  const u = {
+    utm_source: o.utm_source ?? click?.utms.utm_source ?? null,
+    utm_medium: o.utm_medium ?? click?.utms.utm_medium ?? null,
+    utm_campaign: o.utm_campaign ?? click?.utms.utm_campaign ?? null,
+    utm_content: o.utm_content ?? click?.utms.utm_content ?? null,
+    utm_term: o.utm_term ?? click?.utms.utm_term ?? null,
+  };
   const emailHash = o.email ? sha256(o.email.toLowerCase()) : null;
   // Dados para o pixel pelo servidor, já com hash. Nunca o e-mail, telefone ou nome em claro.
   const match = JSON.stringify(matchData(emailHash, o.buyer, o.orderedAt));
@@ -46,8 +64,8 @@ export async function upsertOrder(workspaceId: string, webhookId: string | null,
          campaign_external_id, adset_external_id, ad_external_id, ordered_at, approved_at, payment_method, capi_match)
        values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21::jsonb) returning id`,
       [workspaceId, webhookId, platform, o.externalId, o.status, o.amountCents, o.currency, o.productName,
-        emailHash, o.utm_source, o.utm_medium, o.utm_campaign, o.utm_content, o.utm_term,
-        a.campaign, a.adset, a.ad, o.orderedAt, o.approvedAt, o.paymentMethod ?? null, match],
+        emailHash, u.utm_source, u.utm_medium, u.utm_campaign, u.utm_content, u.utm_term,
+        attr.campaign, attr.adset, attr.ad, o.orderedAt, o.approvedAt, o.paymentMethod ?? null, match],
     );
     if (o.status === "approved" && sendPixel) queuePurchase(row.id);
     return "created" as const;
@@ -66,8 +84,8 @@ export async function upsertOrder(workspaceId: string, webhookId: string | null,
        product_name = coalesce(product_name, $13), payment_method = coalesce(payment_method, $14),
        capi_match = coalesce(capi_match, '{}'::jsonb) || $15::jsonb, updated_at = now()
      where id = $1`,
-    [current.id, o.status, o.amountCents, o.approvedAt, o.utm_source, o.utm_medium, o.utm_campaign,
-      o.utm_content, o.utm_term, a.campaign, a.adset, a.ad, o.productName, o.paymentMethod ?? null, match],
+    [current.id, o.status, o.amountCents, o.approvedAt, u.utm_source, u.utm_medium, u.utm_campaign,
+      u.utm_content, u.utm_term, attr.campaign, attr.adset, attr.ad, o.productName, o.paymentMethod ?? null, match],
   );
   if (o.status === "approved" && sendPixel) queuePurchase(current.id);
   return "updated" as const;

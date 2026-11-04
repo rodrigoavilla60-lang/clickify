@@ -41,6 +41,9 @@ export interface NormalizedOrder extends Utms {
   approvedAt: Date | null;
   paymentMethod?: PaymentMethod | null;
   buyer?: Buyer;
+  // Vem do script de tracking (campo oculto ck_vid no checkout). Quando presente,
+  // a atribuição usa o clique persistido em vez de depender das UTMs do webhook.
+  trackingVisitorKey?: string | null;
 }
 
 // Cada checkout escreve a forma de pagamento de um jeito (PIX, pix, credit_card, CREDIT_CARD,
@@ -176,6 +179,7 @@ export function normalizeGeneric(p: Record<string, unknown>): NormalizedOrder {
     paymentMethod: paymentMethodOf(p.payment_method),
     buyer: genericBuyer(p),
     ...mergeUtms(p, p.utms as Record<string, unknown>, p.tracking as Record<string, unknown>, utmsFromUrl(p.url)),
+    trackingVisitorKey: str(p.ck_vid) ?? null,
   };
 }
 
@@ -228,6 +232,7 @@ export function normalizeShopify(topic: string, p: Record<string, unknown>): Nor
     paymentMethod: paymentMethodOf(((p.payment_gateway_names as string[] | undefined) ?? []).join(" ") || p.gateway),
     buyer: shopifyBuyer(p, notes),
     ...mergeUtms(notes, utmsFromUrl(p.landing_site)),
+    trackingVisitorKey: str(notes.ck_vid ?? notes._ck_vid) ?? null,
   };
 }
 

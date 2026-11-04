@@ -79,6 +79,7 @@ const CONNECTIONS = [
   { href: "/contas", label: "Contas de anúncio" },
   { href: "/utms", label: "UTMs" },
   { href: "/pixel", label: "Pixel" },
+  { href: "/tracking", label: "Tracking" },
 ];
 
 export function ConnectionsNav() {

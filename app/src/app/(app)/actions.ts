@@ -11,6 +11,9 @@ import { upsertOrder } from "@/lib/orders";
 import { isPlatform } from "@/lib/platforms";
 import { validPixelId } from "@/lib/capi";
 import { checkPixel, retryFailed, sendTestEvent } from "@/lib/pixels";
+import { newSiteKey } from "@/lib/track";
+import { sanitizeLayout } from "@/lib/dashboard-layout";
+import { saveDashboardLayoutDb } from "@/lib/dashboard";
 
 // Toda action começa com requireWorkspace(): o workspace sai da sessão, e cada query filtra por ele.
 
@@ -287,4 +290,58 @@ export async function retryPixel() {
   const { ws } = await requireWorkspace();
   await retryFailed(ws.id);
   revalidatePath("/pixel");
+}
+// ---------------- Tracking first-party (script t.js) ----------------
+export interface SiteState { error?: string; ok?: string; values?: Record<string, string> }
+
+export async function createTrackingSite(_: SiteState, form: FormData): Promise<SiteState> {
+  const { ws } = await requireWorkspace();
+  const name = String(form.get("name") ?? "").trim();
+  const domain = String(form.get("domain") ?? "").trim().toLowerCase();
+  const values = { name, domain };
+  const fail = (error: string): SiteState => ({ error, values });
+  if (name.length < 2 || name.length > 60) return fail("Dê um nome de 2 a 60 caracteres (ex.: Loja principal).");
+  if (domain && !/^[a-z0-9]([a-z0-9.-]{0,100}[a-z0-9])?$/.test(domain))
+    return fail("O domínio do CNAME parece inválido (ex.: t.sualoja.com).");
+  const key = newSiteKey();
+  await query(
+    "insert into tracking_sites (workspace_id, public_key, name, domain) values ($1, $2, $3, $4)",
+    [ws.id, key, name, domain || null],
+  );
+  revalidatePath("/tracking");
+  return { ok: "Site criado. Cole o snippet no <head> das páginas para começar a rastrear." };
+}
+
+export async function deleteTrackingSite(form: FormData) {
+  const { ws } = await requireWorkspace();
+  await query("delete from tracking_sites where id = $1 and workspace_id = $2", [String(form.get("id")), ws.id]);
+  revalidatePath("/tracking");
+}
+
+// ---------------- Dashboard personalizável ----------------
+export interface LayoutState {
+  error?: string;
+  ok?: string;
+}
+
+export async function saveDashboardLayout(_: LayoutState, form: FormData): Promise<LayoutState> {
+  const { ws } = await requireWorkspace();
+  let order: unknown;
+  let hidden: unknown;
+  try {
+    order = JSON.parse(String(form.get("order") ?? "[]"));
+    hidden = JSON.parse(String(form.get("hidden") ?? "[]"));
+  } catch {
+    return { error: "Não deu para ler o layout. Tente de novo." };
+  }
+  const layout = sanitizeLayout(order, hidden);
+  await saveDashboardLayoutDb(ws.id, layout);
+  revalidatePath("/dashboard");
+  return { ok: "Layout salvo. O Resumo agora mostra os indicadores do seu jeito." };
+}
+
+export async function resetDashboardLayout() {
+  const { ws } = await requireWorkspace();
+  await query("delete from dashboard_layouts where workspace_id = $1", [ws.id]);
+  revalidatePath("/dashboard");
 }

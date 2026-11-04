@@ -45,7 +45,7 @@ Abra o arquivo `app/.env.local` (já criei, com os campos vazios) e preencha:
 ```
 META_MODE=live
 META_APP_ID=<ID do aplicativo>
-META_APP_SECRET=<chave secreta>
+META_APP_SECRET=
 META_CONFIG_ID=<ID da configuração do passo 2>
 ```
 
